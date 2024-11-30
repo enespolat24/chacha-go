@@ -1,6 +1,10 @@
 package chacha_go
 
-import "fmt"
+import (
+	"encoding/binary"
+	"errors"
+	"fmt"
+)
 
 // rotates x left n bits.
 func rol32(x uint32, n uint) uint32 {
@@ -47,6 +51,30 @@ func chachaPermute(x []uint32, nrounds int) {
 		x[11] += x[15]
 		x[7] = rol32(x[7]^x[11], 7)
 	}
+}
+
+// chachaBlock generates a 64-byte keystream block from the 16-word state.
+func chachaBlock(state []uint32, nrounds int) ([]byte, error) {
+	if len(state) != 16 {
+		return nil, errors.New("state must have exactly 16 32-bit words")
+	}
+
+	// Make a copy of the state to avoid modifying the original state
+	x := make([]uint32, len(state))
+	copy(x, state)
+
+	chachaPermute(x, nrounds)
+
+	// Prepare the keystream block (64 bytes)
+	stream := make([]byte, 64)
+	for i := 0; i < 16; i++ {
+		binary.LittleEndian.PutUint32(stream[i*4:], x[i]+state[i])
+	}
+
+	// Increment the block counter (state[12] in the original code)
+	state[12]++
+
+	return stream, nil
 }
 
 func main() {
