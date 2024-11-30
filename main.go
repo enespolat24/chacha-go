@@ -1,4 +1,4 @@
-package chacha_go
+package main
 
 import (
 	"encoding/binary"
@@ -77,6 +77,41 @@ func chachaBlock(state []uint32, nrounds int) ([]byte, error) {
 	return stream, nil
 }
 
+// hchachaBlock generates a 32-byte block from the 16-word state.
+// This is used to generate the subkey for the XChaCha20 cipher.
+func hchachaBlock(state []uint32, nrounds int) ([]uint32, error) {
+	if len(state) != 16 {
+		return nil, errors.New("state must have exactly 16 32-bit words")
+	}
+
+	x := make([]uint32, len(state))
+	copy(x, state)
+
+	chachaPermute(x, nrounds)
+
+	return append([]uint32(nil), x[0:4]...), nil
+}
+
 func main() {
-	fmt.Println("Hello, World!")
+	state := []uint32{
+		0x61707865, 0x3320646e, 0x79622d32, 0x6b206574,
+		0x01000000, 0x00000000, 0x00000000, 0x00000000,
+		0x00000000, 0x00000000, 0x00000000, 0x00000000,
+		0x00000000, 0x00000000, 0x00000000, 0x00000001,
+	}
+
+	stream, err := chachaBlock(state, 20) // Using 20 rounds (default for ChaCha20)
+	if err != nil {
+		fmt.Println("Error generating block:", err)
+		return
+	}
+
+	fmt.Printf("Keystream block: %x\n", stream)
+
+	hcState, err := hchachaBlock(state, 20)
+	if err != nil {
+		fmt.Println("Error generating HChaCha block:", err)
+		return
+	}
+	fmt.Printf("HChaCha result: %x\n", hcState)
 }
